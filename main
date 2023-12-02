@@ -1,0 +1,107 @@
+from polygon import RESTClient
+import datetime as dt
+import pandas as pd
+import plotly.graph_objects as px
+from plotly.offline import plot
+import plotly.figure_factory as ff 
+#holds the API call
+
+APIKey = RESTClient("API KEY")
+
+# Asks the user for a valid stock ticker
+first_stock = input('Please enter a valid stock ticker (Ex: AAPL, AMZN, META):\n')
+second_stock = input('Please enter a second valid stock ticker: \n')
+want_data_tables = input('Do you want all of the data tables for these two stocks? Y or N: \n')
+
+request = APIKey.get_aggs(ticker = first_stock, multiplier = 1, timespan = 'day', from_ = '2022-01-01', to = '2100-01-01')
+
+request2 = APIKey.get_aggs(ticker = second_stock, multiplier = 1, timespan = 'day', from_ = '2022-01-01', to = '2100-01-01')
+
+price = pd.DataFrame(request)
+price2 = pd.DataFrame(request2)
+price['Date'] = price['timestamp'].apply(lambda x: pd.to_datetime(x*1000000))
+price = price.set_index('Date')
+
+price2['Date'] = price2['timestamp'].apply(lambda x: pd.to_datetime(x*1000000))
+price2 = price2.set_index('Date')
+
+#prints out the data, using plotly, with the open,high,low, and closing prices
+graph = px.Figure(data = [px.Candlestick(
+    x=price.index,open=price['open'],high=price['high'],low=price['low'],close=price['close']
+)])
+
+
+
+graph2 = px.Figure(data = [px.Candlestick(
+    x=price.index,open=price2['open'],high=price2['high'],low=price2['low'],close=price2['close']
+)])
+
+combined_graph = px.Figure(data = [px.Candlestick(
+    x=price.index,open=price2['open'] - price['open'],high=price2['high'] - price['high'],low=price2['low'] - price['low'],close=price2['close'] - price['close']
+)])
+
+#Adds the traces, gives them a name so they're identifiable relative to what they are depicting
+# such that the opening prices graph has a y value at prices['open'] and an x value at the price's index value
+
+graph.add_trace(px.Scatter(
+    x = price.index,
+    y = price['open'],
+    line = dict(color = "rgb(255,255,255)"),
+    name = first_stock + ": Opening prices graph"
+))
+
+graph.add_trace(px.Scatter(
+    x = price.index,
+    y = price['close'],
+    line = dict(color = "rgb(0,0,255)"),
+    name = first_stock + ": Closing prices graph"
+))
+
+graph2.add_trace(px.Scatter(
+    x = price2.index,
+    y = price2['open'],
+    line = dict(color = "rgb(255,0,0)"),
+    name = second_stock + ": Opening prices graph"
+))
+
+graph2.add_trace(px.Scatter(
+    x = price2.index,
+    y = price2['close'],
+    line = dict(color = "rgb(0,255,0)"),
+    name = second_stock + ": Closing prices graph"
+))
+
+# Updates the traces so that each of them have their unique name, such that the line for the first stock's closing
+# and opening price will be shown under the first stock's name, same for the others
+
+graph.update_traces(name = first_stock, showlegend = True)
+
+graph2.update_traces(name = second_stock, showlegend = True)
+
+combined_graph.update_traces(name = "Difference in prices between " + first_stock + " compared to " + second_stock)
+
+#Puts all of the graphs together onto one complete dataset
+graph3 = px.Figure(graph.data + graph2.data + combined_graph.data)
+
+#Holds the weekend information, to stop breaks within the data
+graph3.update_xaxes(rangebreaks= [
+    dict(bounds= ["sat","mon"]) 
+    ])
+
+graph3.update_layout(
+    title = first_stock+ " and "+ second_stock + " graphs",
+    plot_bgcolor = 'rgb(0,0,0)',
+    paper_bgcolor = 'rgb(0,0,0)',
+    yaxis = dict(title = "Price ($)"),
+    xaxis = dict(title = "Year"),
+    font = dict(color = 'rgb(255,255,255)')
+    )
+
+#Plots the data
+plot(graph3, auto_open = True)
+# If they also want the data tables to go alongside this data
+if want_data_tables == 'Y':
+    data_table = ff.create_table(price)
+    data_table.show()
+    second_data_table = ff.create_table(price2)
+    second_data_table.show()
