@@ -1,3 +1,3 @@
 # Polygon-API-Stock-Comparisons
-Graphs and Data Tables comparing two stocks of your pick using Polygon's RESTful API
+Python program that uses Polygon's RESTFul API system and compares two chosen stocks, creating a graph and a data table.
 
